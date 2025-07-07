@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends Controller
 {
 
-
 public function register(Request $request)
 {
     $validator = Validator::make($request->all(), [
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email',
         'password' => 'required|string|min:4|confirmed',
+        // ❌ 'rol' no se valida aquí
     ]);
 
     if ($validator->fails()) {
@@ -29,32 +29,43 @@ public function register(Request $request)
         'name' => $request->name,
         'email' => $request->email,
         'password' => bcrypt($request->password),
+        'rol' => 'usuario' // ✅ Asignamos el rol aquí por defecto
     ]);
 
     return response()->json([
-        'user' => $user,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'rol' => $user->rol // ✅ Importante: incluir el rol en la respuesta
+        ],
         'token' => $user->createToken('api-token')->plainTextToken,
+        'token_type' => 'Bearer'
     ], 201);
 }
+
 
    public function login(Request $request)
 {
     $request->validate([
         'email' => 'required|email',
         'password' => 'required',
+         'token_type' => 'Bearer'
     ]);
 
     $user = User::where('email', $request->email)->first();
 
     if (! $user || ! Hash::check($request->password, $user->password)) {
         throw ValidationException::withMessages([
-            'email' => ['Las credenciales son incorrectas.'],
+            ['Las credenciales son incorrectas.'],
         ]);
     }
 
     return response()->json([
         'user' => $user,
         'token' => $user->createToken('api-token')->plainTextToken,
+        'token_type' => 'Bearer',
+        'rol' => $user->rol
     ]);
 }
 
@@ -67,6 +78,8 @@ public function register(Request $request)
 
     public function me(Request $request)
     {
-        return $request->user();
+        return response()->json(['user' => $request->user()]);
+
     }
 }
+
